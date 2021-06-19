@@ -1,0 +1,58 @@
+version: "3.7"
+
+services:
+  headquater:
+    ports:
+      - 6543:6543
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-HQ/Dockerfile
+      args:
+        - NAME=hq
+    container_name: hq
+
+  producer1:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=1
+        - NAME=solar
+    container_name: producer1
+    depends_on:
+      - headquater
+
+  producer2:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=2
+        - NAME=water
+    container_name: producer2
+    depends_on:
+      - headquater
+
+  producer3:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=3
+        - NAME=wind
+    container_name: producer3
+    depends_on:
+      - headquater
+
+  consumer1:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/consumer/Dockerfile
+      args:
+        - ID=4
+        - NAME=consumer1
+    container_name: consumer1
+    depends_on:
+      - headquater
+
+

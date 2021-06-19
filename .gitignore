@@ -110,3 +110,5 @@ buildNumber.properties
 .mvn/wrapper/maven-wrapper.jar
 
 /.idea/
+/VS-Truong-Client/.idea/
+/VS-Truong-HQ/.idea/

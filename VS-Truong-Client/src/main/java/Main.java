@@ -1,0 +1,29 @@
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Timer;
+
+
+public class Main {
+    private static final int INTERVAL = 5000; // milliseconds
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
+
+    public static void main(String[] args) {
+        if(args.length < 1) {
+            LOGGER.error("Missing arguments.");
+            System.exit(1);
+        }
+
+        Client client = null;
+
+        if(args[0].equalsIgnoreCase("producer")) {
+            client = new Producer(Integer.parseInt(args[1]), args[2]);
+        } else if(args[0].equalsIgnoreCase("consumer")) {
+            client = new Consumer(Integer.parseInt(args[1]), args[2]);
+        }
+
+        Timer timer = new Timer();
+        timer.schedule(new InfoTask(client), 0, INTERVAL);
+    }
+}
