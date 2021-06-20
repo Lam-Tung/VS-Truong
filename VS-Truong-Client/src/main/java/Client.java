@@ -22,6 +22,7 @@ public abstract class Client {
     protected final int MAX_POWER = 1000;
     protected final int BUFFER_SIZE = 512;
     protected final int FAILURE_CHANCE = 5;
+    protected final int FAILURE_DURATION = 5000;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Client.class);
 
@@ -74,6 +75,12 @@ public abstract class Client {
         int success = r.nextInt(100) + 1;
 
         if (success < FAILURE_CHANCE) {
+            LOGGER.info("Client failure...");
+            try {
+                Thread.sleep(FAILURE_DURATION);
+            } catch (InterruptedException e) {
+                LOGGER.error("Sleep failed...{}", e.getMessage());
+            }
             return true;
         }
 
