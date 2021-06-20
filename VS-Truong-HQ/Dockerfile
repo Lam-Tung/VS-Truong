@@ -22,6 +22,7 @@ LABEL maintainer=lam-tung.truong@stud.h-da.de
 LABEL stage=run
 
 EXPOSE 6543/udp
+EXPOSE 8080/tcp
 ARG NAME
 ENV ENV_NAME=${NAME}
 
