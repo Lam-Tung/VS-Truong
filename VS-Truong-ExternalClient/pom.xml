@@ -11,7 +11,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>VS-Truong-HQ</artifactId>
+    <artifactId>VS-Truong-ExternalClient</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <build>

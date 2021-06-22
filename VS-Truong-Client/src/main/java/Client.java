@@ -1,3 +1,8 @@
+import org.apache.thrift.server.TServer;
+import org.apache.thrift.server.TSimpleServer;
+import org.apache.thrift.transport.TServerSocket;
+import org.apache.thrift.transport.TServerTransport;
+import org.apache.thrift.transport.TTransportException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,25 +18,34 @@ public abstract class Client {
     protected int power;
     protected byte[] buffer;
 
-    protected InetAddress host;
-    protected DatagramSocket udpSocket;
-
-    protected static String hostname = "hq";
-    protected static int HOST_PORT = 6543;
-    protected final int MIN_POWER = 50;
-    protected final int MAX_POWER = 1000;
+    protected final int BASE_POWER = 200;
+    protected final int MIN_POWER = -100;
+    protected final int MAX_POWER = 100;
     protected final int BUFFER_SIZE = 512;
     protected final int FAILURE_CHANCE = 5;
     protected final int FAILURE_DURATION = 5000;
 
+    // UDP
+    protected InetAddress host;
+    protected DatagramSocket udpSocket;
+    protected static String hostname = "hq";
+    protected static int HOST_PORT = 6543;
+
+    // RPC Thrift
+    protected boolean shutDown = false;
+    protected ClientThriftImpl clientThriftImpl;
+    protected ClientThriftService.Processor processor;
+    protected int tPort;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(Client.class);
 
-    public Client(int id, String name, ClientType type) {
+    public Client(int id, String name, ClientType type, int tPort) {
         this.id = id;
         this.name = name;
         this.type = type;
-        this.power = setRandomPower();
+        this.power = BASE_POWER;
         this.buffer = new byte[BUFFER_SIZE];
+        this.tPort = tPort;
 
         LOGGER.info("Created Client: " + this.name + " of type " + this.type.name());
 
@@ -44,13 +58,27 @@ public abstract class Client {
         } catch (SocketException e) {
             LOGGER.error("Failed to create UDP socket...\n{}", e.getLocalizedMessage());
         }
+
+        try {
+            clientThriftImpl = new ClientThriftImpl(this);
+            processor = new ClientThriftService.Processor(clientThriftImpl);
+
+            Runnable tServer = () -> createThriftServer(processor);
+            Thread thriftServerThread = new Thread(tServer);
+            thriftServerThread.start();
+        } catch (Exception e) {
+            LOGGER.error("Failed to create Thrift-Server...{}", e.getMessage());
+        }
     }
 
     protected int setRandomPower() {
         Random r = new Random();
-        return r.nextInt((MAX_POWER - MIN_POWER) + 1) + MIN_POWER;
+        return power + r.nextInt((MAX_POWER - MIN_POWER) + 1) + MIN_POWER;
     }
 
+    protected void setPower(int power) {
+        this.power = power;
+    }
 
     protected void sendInfo() {
         JSONObject json = new JSONObject();
@@ -85,5 +113,16 @@ public abstract class Client {
         }
 
         return false;
+    }
+
+    public void createThriftServer(ClientThriftService.Processor processor) {
+        try {
+            TServerTransport serverTransport = new TServerSocket(tPort);
+            TServer tServer = new TSimpleServer(new TServer.Args(serverTransport).processor(processor));
+            LOGGER.info("Starting thrift-server... Listening on port " + tPort + "...");
+            tServer.serve();
+        } catch (TTransportException e) {
+            LOGGER.error("Failed to create TTransport...\n{}", e.getMessage());
+        }
     }
 }

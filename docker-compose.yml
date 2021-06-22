@@ -12,6 +12,17 @@ services:
         - NAME=hq
     container_name: hq
 
+  externalclient:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-ExternalClient/Dockerfile
+      args:
+        - NAME=xclient
+        - TPORT=9090
+    container_name: xclient
+    depends_on:
+        - headquarter
+
   producer1:
     build:
       context: ./
@@ -19,6 +30,7 @@ services:
       args:
         - ID=1
         - NAME=solar
+        - TPORT=9091
     container_name: producer1
     depends_on:
       - headquarter
@@ -30,6 +42,7 @@ services:
       args:
         - ID=2
         - NAME=water
+        - TPORT=9092
     container_name: producer2
     depends_on:
       - headquarter
@@ -41,6 +54,7 @@ services:
       args:
         - ID=3
         - NAME=wind
+        - TPORT=9093
     container_name: producer3
     depends_on:
       - headquarter
@@ -52,6 +66,7 @@ services:
       args:
         - ID=4
         - NAME=consumer1
+        - TPORT=9094
     container_name: consumer1
     depends_on:
       - headquarter

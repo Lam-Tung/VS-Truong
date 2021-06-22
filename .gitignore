@@ -112,3 +112,5 @@ buildNumber.properties
 /.idea/
 /VS-Truong-Client/.idea/
 /VS-Truong-HQ/.idea/
+/Thrift/gen-java/
+/VS-Truong-ExternalClient/.idea/

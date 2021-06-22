@@ -1,6 +1,12 @@
 import clientclasses.Client;
 import clientclasses.ClientType;
 import http.HTTPServer;
+import org.apache.thrift.TException;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TJSONProtocol;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TSocket;
+import org.apache.thrift.transport.TTransport;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,12 +37,6 @@ public class HQ {
         this.buffer = new byte[BUFFER_SIZE];
         this.clients = new HashMap<>();
         this.history = new HashMap<>();
-/*
-        //test
-        clients.put(0, new Client(0, ClientType.PRODUCER, "water", 120));
-        clients.put(1, new Client(1, ClientType.PRODUCER, "wind", 200));
-        clients.put(2, new Client(2, ClientType.CONSUMER, "cons1", 50));
-*/
 
         try {
             udpSocket = new DatagramSocket(null);
@@ -48,10 +48,10 @@ public class HQ {
             System.exit(1);
         }
 
+        // HTTP-Server
         Runnable HTTPServer = new HTTPServer(clients, history);
         Thread HTTPServerThread = new Thread(HTTPServer);
         HTTPServerThread.start();
-
     }
 
     public void run() {
@@ -71,12 +71,6 @@ public class HQ {
         InetAddress address = udpPacket.getAddress();
         int port = udpPacket.getPort();
         String payload = new String(udpPacket.getData(), 0, udpPacket.getLength());
-
-        /*JSONObject json = new JSONObject(payload);
-        int id = json.getInt("id");
-        ClientType type = (ClientType) json.get("type");
-        String name = json.getString("name");
-        int power = json.getInt("power");*/
 
         LOGGER.info("Received UDP packet from " + address + ":" + port + payload);
     }
@@ -103,5 +97,36 @@ public class HQ {
             powerHistory.add(power);
             history.put(id, powerHistory);
         }
+    }
+
+    public void performShutDown(String hostname, int port, boolean value) {
+        try {
+            TTransport transport;
+
+            transport = new TSocket(hostname, port);
+            transport.open();
+
+            TProtocol protocol = new TBinaryProtocol(transport);
+            ClientThriftService.Client client = new ClientThriftService.Client(protocol);
+
+            try {
+                client.shutDown(value);
+                LOGGER.info("Shut down performed successfully...");
+            } catch (TException e) {
+                LOGGER.error("Error performing shut down...{}\n", e.getMessage());
+            }
+
+            transport.close();
+        } catch (TException e) {
+            LOGGER.error("Error creating TSocket...{}\n", e.getMessage());
+        }
+    }
+
+    public Map<Integer, Client> getClients() {
+        return clients;
+    }
+
+    public Map<Integer, List<Integer>> getHistory() {
+        return history;
     }
 }

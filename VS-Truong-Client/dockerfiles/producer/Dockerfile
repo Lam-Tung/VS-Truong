@@ -10,6 +10,7 @@ RUN rm -f /app/src
 RUN mkdir -p /app/
 COPY VS-Truong-Client/src/ /app/src/
 COPY VS-Truong-Client/pom.xml /app/
+COPY pom.xml /pom.xml
 WORKDIR /app
 RUN mvn clean package
 
@@ -25,11 +26,12 @@ ARG ID
 ENV ENV_ID=${ID}
 ARG NAME
 ENV ENV_NAME=${NAME}
+ARG TPORT
+ENV ENV_TPORT=${TPORT}
 
 RUN rm -f /app
 RUN mkdir -p /app
 COPY --from=build /app/target/VS-Truong-Client-1.0-SNAPSHOT-jar-with-dependencies.jar /app
-#CMD ["java", "-jar", "/app/VS-Truong-Client-1.0-SNAPSHOT-jar-with-dependencies.jar", "producer", "$ENV_ID", "$ENV_NAME"]
-CMD java -jar /app/VS-Truong-Client-1.0-SNAPSHOT-jar-with-dependencies.jar producer $ENV_ID $ENV_NAME
+CMD java -jar /app/VS-Truong-Client-1.0-SNAPSHOT-jar-with-dependencies.jar producer $ENV_ID $ENV_NAME $ENV_TPORT
 
 
