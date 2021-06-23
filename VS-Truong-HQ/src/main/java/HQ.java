@@ -3,10 +3,10 @@ import clientclasses.ClientType;
 import http.HTTPServer;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TJSONProtocol;
 import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TTransport;
+import org.apache.thrift.server.TServer;
+import org.apache.thrift.server.TSimpleServer;
+import org.apache.thrift.transport.*;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,13 +30,20 @@ public class HQ {
     private Map<Integer, Client> clients;
     private Map<Integer, List<Integer>> history;
 
+    // RPC Thrift
+    private ExternalClientThriftImpl externalClientThriftImpl;
+    private ExternalClientThriftService.Processor processor;
+    int tPort;
+    String status = "running";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(HQ.class);
 
-    public HQ(String name) {
+    public HQ(String name, int tPort) {
         this.name = name;
         this.buffer = new byte[BUFFER_SIZE];
         this.clients = new HashMap<>();
         this.history = new HashMap<>();
+        this.tPort = tPort;
 
         try {
             udpSocket = new DatagramSocket(null);
@@ -52,6 +59,17 @@ public class HQ {
         Runnable HTTPServer = new HTTPServer(clients, history);
         Thread HTTPServerThread = new Thread(HTTPServer);
         HTTPServerThread.start();
+
+        try {
+            externalClientThriftImpl = new ExternalClientThriftImpl(this);
+            processor = new ExternalClientThriftService.Processor(externalClientThriftImpl);
+
+            Runnable tServer = () -> createThriftServer(processor);
+            Thread thriftServerThread = new Thread(tServer);
+            thriftServerThread.start();
+        } catch (Exception e) {
+            LOGGER.error("Failed to create Thrift-Server...{}", e.getMessage());
+        }
     }
 
     public void run() {
@@ -111,7 +129,7 @@ public class HQ {
 
             try {
                 client.shutDown(value);
-                LOGGER.info("Shut down performed successfully...");
+                LOGGER.info("Power on/off performed successfully...");
             } catch (TException e) {
                 LOGGER.error("Error performing shut down...{}\n", e.getMessage());
             }
@@ -119,6 +137,40 @@ public class HQ {
             transport.close();
         } catch (TException e) {
             LOGGER.error("Error creating TSocket...{}\n", e.getMessage());
+        }
+    }
+
+    public void performPowerChange(String hostname, int port, int amount) {
+        try {
+            TTransport transport;
+
+            transport = new TSocket(hostname, port);
+            transport.open();
+
+            TProtocol protocol = new TBinaryProtocol(transport);
+            ClientThriftService.Client client = new ClientThriftService.Client(protocol);
+
+            try {
+                client.changePower(amount);
+                LOGGER.info("Change power performed successfully...");
+            } catch (TException e) {
+                LOGGER.error("Error changing power...{}\n", e.getMessage());
+            }
+
+            transport.close();
+        } catch (TException e) {
+            LOGGER.error("Error creating TSocket...{}\n", e.getMessage());
+        }
+    }
+
+    public void createThriftServer(ExternalClientThriftService.Processor processor) {
+        try {
+            TServerTransport serverTransport = new TServerSocket(tPort);
+            TServer tServer = new TSimpleServer(new TServer.Args(serverTransport).processor(processor));
+            LOGGER.info("Starting thrift-server... Listening on port " + tPort + "...");
+            tServer.serve();
+        } catch (TTransportException e) {
+            LOGGER.error("Failed to create TTransport...\n{}", e.getMessage());
         }
     }
 

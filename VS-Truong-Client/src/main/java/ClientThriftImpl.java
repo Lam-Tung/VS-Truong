@@ -13,6 +13,7 @@ public class ClientThriftImpl implements ClientThriftService.Iface{
 
     @Override
     public boolean shutDown(boolean shutDown) throws TException {
+        LOGGER.info("Power on/off request received...");
         if (shutDown) {
             client.shutDown = true;
             LOGGER.info("Client " + client.id + " power off...");
@@ -20,13 +21,14 @@ public class ClientThriftImpl implements ClientThriftService.Iface{
             client.shutDown = false;
             LOGGER.info("Client " + client.id + " power on...");
         }
-        return true;
+        return client.shutDown;
     }
 
     @Override
     public boolean changePower(int amount) throws TException {
+        LOGGER.info("Change power request received...");
         client.setPower(amount);
         LOGGER.info("Client " + client.id + " power set to " + amount + "...");
-        return false;
+        return true;
     }
 }

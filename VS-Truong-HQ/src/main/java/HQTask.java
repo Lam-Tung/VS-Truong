@@ -16,11 +16,21 @@ public class HQTask extends TimerTask {
     }
 
     public void run() {
+        Random r = new Random();
+        boolean task = r.nextBoolean();
+
         String hostname = getRandomClientHostname();
         int port = getPort(hostname);
-        boolean value = new Random().nextBoolean();
-        LOGGER.info("Perform shut down for " + hostname + "...");
-        hq.performShutDown(hostname, port, value);
+
+        if (task) {
+                boolean value = r.nextBoolean();
+                LOGGER.info("Perform power on/off for " + hostname + "...");
+                hq.performShutDown(hostname, port, value);
+        } else {
+                int amount = 400;
+                LOGGER.info("Perform power change for " + hostname + " to " + amount + "...");
+                hq.performPowerChange(hostname, port, amount);
+        }
     }
 
     private String getRandomClientHostname() {

@@ -26,7 +26,10 @@ EXPOSE 6543/udp
 EXPOSE 8080/tcp
 ARG NAME
 ENV ENV_NAME=${NAME}
+ARG TPORT
+ENV ENV_TPORT=${TPORT}
 
 RUN mkdir -p /app
 COPY --from=build /app/target/VS-Truong-HQ-1.0-SNAPSHOT-jar-with-dependencies.jar /app
-CMD ["java", "-jar", "/app/VS-Truong-HQ-1.0-SNAPSHOT-jar-with-dependencies.jar", "$ENV_NAME"]
+CMD java -jar /app/VS-Truong-HQ-1.0-SNAPSHOT-jar-with-dependencies.jar $ENV_NAME $ENV_TPORT
+

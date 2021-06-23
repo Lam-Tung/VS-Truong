@@ -9,12 +9,12 @@ public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExternalClient.class);
 
     public static void main(String[] args) {
-        if(args.length < 2) {
+        if(args.length < 1) {
             LOGGER.error("Missing arguments.");
             System.exit(1);
         }
 
-        ExternalClient xClient = new ExternalClient(args[0], Integer.parseInt(args[1]));
+        ExternalClient xClient = new ExternalClient(args[0]);
 
         Timer timer = new Timer();
         timer.schedule(new ExternalClientTask(xClient), 0, INTERVAL);

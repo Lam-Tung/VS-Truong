@@ -1,6 +1,7 @@
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Random;
 import java.util.TimerTask;
 
 public class ExternalClientTask extends TimerTask {
@@ -13,8 +14,15 @@ public class ExternalClientTask extends TimerTask {
     }
 
     public void run() {
-        while (true) {
+        Random r = new Random();
+        boolean task = r.nextBoolean();
 
+        if (task) {
+            LOGGER.info("Perform get history...");
+            xClient.performGetHistory();
+        } else {
+            LOGGER.info("Perform get status...");
+            xClient.performGetStatus();
         }
     }
 }

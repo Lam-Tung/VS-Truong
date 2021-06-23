@@ -10,6 +10,7 @@ services:
       dockerfile: ./VS-Truong-HQ/Dockerfile
       args:
         - NAME=hq
+        - TPORT=9090
     container_name: hq
 
   externalclient:
@@ -18,7 +19,6 @@ services:
       dockerfile: ./VS-Truong-ExternalClient/Dockerfile
       args:
         - NAME=xclient
-        - TPORT=9090
     container_name: xclient
     depends_on:
         - headquarter
