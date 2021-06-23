@@ -7,34 +7,42 @@ import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.server.TServer;
 import org.apache.thrift.server.TSimpleServer;
 import org.apache.thrift.transport.*;
+import org.eclipse.paho.client.mqttv3.IMqttClient;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.*;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
+import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class HQ {
-    private static  String hostname = "hq";
+    private final String name;
+    private final Map<Integer, Client> clients;
+    private final Map<Integer, List<Integer>> history;
+
+    // UDP
+    private final byte[] buffer;
+    private DatagramSocket udpSocket;
+    private static final String hostname = "hq";
     private static final int HOST_PORT = 6543;
     private static final int BUFFER_SIZE = 512;
-
-    private final String name;
-    private byte[] buffer;
-    private DatagramSocket udpSocket;
-    private Map<Integer, Client> clients;
-    private Map<Integer, List<Integer>> history;
+    private static final boolean UDP_TRANSFER = false;
 
     // RPC Thrift
     private ExternalClientThriftImpl externalClientThriftImpl;
     private ExternalClientThriftService.Processor processor;
     int tPort;
     String status = "running";
+
+    // Mqtt
+    private String subscriberId;
+    private IMqttClient subscriber;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HQ.class);
 
@@ -44,7 +52,9 @@ public class HQ {
         this.clients = new HashMap<>();
         this.history = new HashMap<>();
         this.tPort = tPort;
+        this.subscriberId = UUID.randomUUID().toString();
 
+        // UDP
         try {
             udpSocket = new DatagramSocket(null);
             InetSocketAddress address = new InetSocketAddress(hostname , HOST_PORT);
@@ -60,6 +70,7 @@ public class HQ {
         Thread HTTPServerThread = new Thread(HTTPServer);
         HTTPServerThread.start();
 
+        // RPC Thrift
         try {
             externalClientThriftImpl = new ExternalClientThriftImpl(this);
             processor = new ExternalClientThriftService.Processor(externalClientThriftImpl);
@@ -70,17 +81,50 @@ public class HQ {
         } catch (Exception e) {
             LOGGER.error("Failed to create Thrift-Server...{}", e.getMessage());
         }
+
+        // MQTT
+        try {
+            subscriber = new MqttClient("tcp://mqtt.eclipseprojects.io:1883", subscriberId);
+            MqttConnectOptions options = new MqttConnectOptions();
+            options.setAutomaticReconnect(true);
+            options.setCleanSession(true);
+            options.setConnectionTimeout(10);
+            subscriber.connect(options);
+            LOGGER.info("Mqtt connection to server established...");
+        } catch (MqttException e) {
+            LOGGER.error("Failed to create Mqtt-Client...{}", e.getMessage());
+        }
     }
 
     public void run() {
-        while (true) {
-            DatagramPacket udpPacket = new DatagramPacket(buffer, BUFFER_SIZE);
+        // UDP
+        if (UDP_TRANSFER) {
+            while (true) {
+                DatagramPacket udpPacket = new DatagramPacket(buffer, BUFFER_SIZE);
+                try {
+                    udpSocket.receive(udpPacket);
+                    byte[] payload = Arrays.copyOfRange(udpPacket.getData(), 0, udpPacket.getLength());
+                    updateClients(payload);
+                    printUdpPacket(udpPacket);
+                } catch (IOException e) {
+                    LOGGER.error("Error receiving packet...{}\n", e.getMessage());
+                }
+            }
+        // MQTT
+        } else {
             try {
-                udpSocket.receive(udpPacket);
-                updateClients(udpPacket);
-                printUdpPacket(udpPacket);
-            } catch (IOException e) {
-                LOGGER.error("Error receiving packet...{}\n", e.getMessage());
+                CountDownLatch receivedSignal = new CountDownLatch(10);
+                subscriber.subscribe("POWER_UPDATE", (topic, msg) -> {
+                    byte[] payload = msg.getPayload();
+                    updateClients(payload);
+                    printMqttData(payload);
+                    receivedSignal.countDown();
+                });
+                receivedSignal.await(15, TimeUnit.SECONDS);
+            } catch (MqttException e) {
+                LOGGER.error("Error subscribing...{}\n", e.getMessage());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -93,8 +137,13 @@ public class HQ {
         LOGGER.info("Received UDP packet from " + address + ":" + port + payload);
     }
 
-    private void updateClients(DatagramPacket udpPacket) {
-        byte[] payload = Arrays.copyOfRange(udpPacket.getData(), 0, udpPacket.getLength());
+    private void printMqttData(byte[] payload) {
+        String jsonString = new JSONObject(new String(payload)).toString();
+
+        LOGGER.info("Received Mqtt data: " + jsonString);
+    }
+
+    private void updateClients(byte[] payload) {
         JSONObject jsonObject = new JSONObject(new String(payload));
 
         int id = jsonObject.getInt("id");

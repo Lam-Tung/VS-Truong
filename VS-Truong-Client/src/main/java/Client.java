@@ -3,13 +3,16 @@ import org.apache.thrift.server.TSimpleServer;
 import org.apache.thrift.transport.TServerSocket;
 import org.apache.thrift.transport.TServerTransport;
 import org.apache.thrift.transport.TTransportException;
+import org.eclipse.paho.client.mqttv3.*;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
+import java.util.UUID;
 
 public abstract class Client {
     protected int id;
@@ -37,6 +40,10 @@ public abstract class Client {
     protected ClientThriftService.Processor processor;
     protected int tPort;
 
+    // MQTT
+    protected String publisherId;
+    protected IMqttClient publisher;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(Client.class);
 
     public Client(int id, String name, ClientType type, int tPort) {
@@ -46,9 +53,11 @@ public abstract class Client {
         this.power = BASE_POWER;
         this.buffer = new byte[BUFFER_SIZE];
         this.tPort = tPort;
+        this.publisherId = UUID.randomUUID().toString();
 
         LOGGER.info("Created Client: " + this.name + " of type " + this.type.name());
 
+        // UDP
         try {
             host = InetAddress.getByName(hostname);
             udpSocket = new DatagramSocket();
@@ -59,6 +68,7 @@ public abstract class Client {
             LOGGER.error("Failed to create UDP socket...\n{}", e.getLocalizedMessage());
         }
 
+        // RPC Thrift
         try {
             clientThriftImpl = new ClientThriftImpl(this);
             processor = new ClientThriftService.Processor(clientThriftImpl);
@@ -68,6 +78,19 @@ public abstract class Client {
             thriftServerThread.start();
         } catch (Exception e) {
             LOGGER.error("Failed to create Thrift-Server...{}", e.getMessage());
+        }
+
+        // MQTT
+        try {
+            publisher = new MqttClient("tcp://mqtt.eclipseprojects.io:1883", publisherId);
+            MqttConnectOptions options = new MqttConnectOptions();
+            options.setAutomaticReconnect(true);
+            options.setCleanSession(true);
+            options.setConnectionTimeout(10);
+            publisher.connect(options);
+            LOGGER.info("Mqtt connection to server established...");
+        } catch (MqttException e) {
+            LOGGER.error("Failed to create Mqtt-Client...{}", e.getMessage());
         }
     }
 
@@ -96,6 +119,33 @@ public abstract class Client {
         } catch (IOException e) {
             LOGGER.error("Failed to send UDP packet...{}", e.getMessage());
         }
+    }
+
+    protected void sendMqttMsg() {
+        if ( !publisher.isConnected()) {
+            LOGGER.error("Could not send Mqtt message, client not connected...");
+        }
+        MqttMessage msg = generateMqttMsg();
+        msg.setQos(0);
+        msg.setRetained(true);
+        try {
+            publisher.publish("POWER_UPDATE", msg);
+            LOGGER.info("Mqtt message sent...");
+        } catch (MqttException e) {
+            LOGGER.error("Could not publish Mqtt message...");
+        }
+    }
+
+    private MqttMessage generateMqttMsg() {
+        JSONObject json = new JSONObject();
+        json.put("id", this.id);
+        json.put("type", this.type);
+        json.put("name", this.name);
+        json.put("power", this.power);
+        String jsonString = json.toString();
+        byte[] payload = jsonString.getBytes(StandardCharsets.UTF_8);
+
+        return new MqttMessage(payload);
     }
 
     public boolean setRandomSystemFailure() {

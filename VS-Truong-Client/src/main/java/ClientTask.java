@@ -21,7 +21,12 @@ public class ClientTask extends TimerTask {
             }
 
             client.power = client.setRandomPower();
-            client.sendInfo();
+
+            // UDP
+            // client.sendInfo();
+
+            // MQTT
+            client.sendMqttMsg();
         }
     }
 }
