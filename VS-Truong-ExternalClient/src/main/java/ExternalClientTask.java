@@ -16,10 +16,12 @@ public class ExternalClientTask extends TimerTask {
     public void run() {
         Random r = new Random();
         boolean task = r.nextBoolean();
+        int index = 0;
 
         if (task) {
             LOGGER.info("Perform get history...");
-            xClient.performGetHistory();
+            xClient.performGetHistory(index);
+            index++;
         } else {
             LOGGER.info("Perform get status...");
             xClient.performGetStatus();

@@ -1,4 +1,4 @@
 service ExternalClientThriftService {
     string getStatus(),
-    string getHistory()
+    string getHistory(1:i32 index)
 }

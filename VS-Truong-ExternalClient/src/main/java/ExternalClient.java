@@ -21,7 +21,7 @@ public class ExternalClient {
         this.name = name;
     }
 
-    public void performGetHistory() {
+    public void performGetHistory(int index) {
         try {
             TTransport transport;
 
@@ -32,7 +32,7 @@ public class ExternalClient {
             ExternalClientThriftService.Client client = new ExternalClientThriftService.Client(protocol);
 
             try {
-                String result = client.getHistory();
+                String result = client.getHistory(index);
                 LOGGER.info("Get history performed successfully...");
                 LOGGER.info(result);
             } catch (TException e) {
