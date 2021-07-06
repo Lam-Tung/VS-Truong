@@ -28,29 +28,19 @@ public class ExternalClientThriftImpl implements ExternalClientThriftService.Ifa
         for (Map.Entry<Integer, List<Integer>> entry : history.entrySet()) {
             result.append("Client ").append(entry.getKey()).append(":\n");
             List<Integer> powerHistory = entry.getValue();
-            if (index == 0 && ((history.size() < DATA_SETS)) || (history.size() - DATA_SETS < 0 )) {
-                for (int i = index; i < history.size(); i++) {
-                    if (i == (powerHistory.size() - 1)) {
-                        result.append(powerHistory.get(i)).append("\n");
-                    } else {
-                        result.append(powerHistory.get(i)).append(", ");
-                    }
-                }
-            } else {
-                if (index + DATA_SETS > history.size()) {
-                    index--;
-                }
+            int startIndex = index * DATA_SETS;
 
-                int indexEnd = index + DATA_SETS;
-                for (int i = index; i < indexEnd ; i++) {
-                    if (i == (indexEnd - 1)) {
-                        result.append(powerHistory.get(i)).append("\n");
-                    } else {
-                        result.append(powerHistory.get(i)).append(", ");
-                    }
-                }
+            if (startIndex > powerHistory.size()) {
+                startIndex--;
             }
+
+            for (int i = startIndex; i < powerHistory.size(); i++) {
+                result.append(powerHistory.get(i)).append(", ");
+            }
+
+            result.append("\n");
         }
+
 
         return result.toString();
     }
