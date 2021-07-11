@@ -28,9 +28,13 @@ ARG NAME
 ENV ENV_NAME=${NAME}
 ARG TPORT
 ENV ENV_TPORT=${TPORT}
+ARG UPORT
+ENV ENV_UPORT=${UPORT}
+ARG HOST
+ENV ENV_HOST=${HOST}
 
 RUN rm -f /app
 RUN mkdir -p /app
 COPY --from=build /app/target/VS-Truong-Client-1.0-SNAPSHOT-jar-with-dependencies.jar /app
-CMD java -jar /app/VS-Truong-Client-1.0-SNAPSHOT-jar-with-dependencies.jar consumer $ENV_ID $ENV_NAME $ENV_TPORT
+CMD java -jar /app/VS-Truong-Client-1.0-SNAPSHOT-jar-with-dependencies.jar consumer $ENV_ID $ENV_NAME $ENV_TPORT $ENV_UPORT $ENV_HOST
 

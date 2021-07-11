@@ -22,14 +22,20 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class HQ {
+    public String getName() {
+        return name;
+    }
+
     private final String name;
     private final Map<Integer, Client> clients;
     private final Map<Integer, List<Integer>> history;
+    private final Map<Integer, Boolean> statusClients;
+    private String allStatus;
 
     // UDP
     private final byte[] buffer;
     private DatagramSocket udpSocket;
-    private static final String hostname = "hq";
+    private static String hostname;
     private static final int HOST_PORT = 6543;
     private static final int BUFFER_SIZE = 512;
     private static final boolean UDP_TRANSFER = false;
@@ -37,6 +43,8 @@ public class HQ {
     // RPC Thrift
     private ExternalClientThriftImpl externalClientThriftImpl;
     private ExternalClientThriftService.Processor processor;
+    private HqThriftServiceImpl hqThriftImpl;
+    private HqThriftService.Processor processorHq;
     int tPort;
     String status = "running";
 
@@ -48,11 +56,14 @@ public class HQ {
 
     public HQ(String name, int tPort) {
         this.name = name;
+        this.hostname = name;
         this.buffer = new byte[BUFFER_SIZE];
         this.clients = new HashMap<>();
         this.history = new HashMap<>();
+        this.statusClients = new HashMap<>();
         this.tPort = tPort;
         this.subscriberId = UUID.randomUUID().toString();
+        this.allStatus = "";
 
         // UDP
         try {
@@ -76,6 +87,17 @@ public class HQ {
             processor = new ExternalClientThriftService.Processor(externalClientThriftImpl);
 
             Runnable tServer = () -> createThriftServer(processor);
+            Thread thriftServerThread = new Thread(tServer);
+            thriftServerThread.start();
+        } catch (Exception e) {
+            LOGGER.error("Failed to create Thrift-Server...{}", e.getMessage());
+        }
+
+        try {
+            hqThriftImpl = new HqThriftServiceImpl(this);
+            processorHq = new HqThriftService.Processor(hqThriftImpl);
+
+            Runnable tServer = () -> createThriftServer(processorHq);
             Thread thriftServerThread = new Thread(tServer);
             thriftServerThread.start();
         } catch (Exception e) {
@@ -113,8 +135,9 @@ public class HQ {
         // MQTT
         } else {
             try {
+                String topics = this.hostname;
                 CountDownLatch receivedSignal = new CountDownLatch(10);
-                subscriber.subscribe("POWER_UPDATE", (topic, msg) -> {
+            subscriber.subscribe(topics, (topic, msg) -> {
                     byte[] payload = msg.getPayload();
                     updateClients(payload);
                     printMqttData(payload);
@@ -150,9 +173,10 @@ public class HQ {
         ClientType type = ClientType.valueOf(jsonObject.getString("type"));
         String name = jsonObject.getString("name");
         int power = jsonObject.getInt("power");
+        boolean shutdownStatus = jsonObject.getBoolean("shutdown-status");
 
         // add to clients
-        Client client = new Client(id, type, name, power);
+        Client client = new Client(id, type, name, power, shutdownStatus);
         clients.put(id, client);
 
         // add to history
@@ -163,6 +187,13 @@ public class HQ {
             List<Integer> powerHistory = new ArrayList<>();
             powerHistory.add(power);
             history.put(id, powerHistory);
+        }
+
+        // update status of clients
+        if (statusClients.containsKey(id)) {
+            statusClients.replace(id, shutdownStatus);
+        } else {
+            statusClients.put(id, shutdownStatus);
         }
     }
 
@@ -212,6 +243,33 @@ public class HQ {
         }
     }
 
+    public String performGetAllInfo(String hostname, int port, int index) {
+        String result = "";
+        try {
+            TTransport transport;
+
+            transport = new TSocket(hostname, port);
+            transport.open();
+
+            TProtocol protocol = new TBinaryProtocol(transport);
+            HqThriftService.Client client = new HqThriftService.Client(protocol);
+
+            try {
+                result = client.getOtherHqStatus(index);
+                LOGGER.info(" Get info from " + hostname + "...");
+            } catch (TException e) {
+                LOGGER.error("Error getting info...{}\n", e.getMessage());
+                e.printStackTrace();
+            }
+
+            transport.close();
+        } catch (TException e) {
+            LOGGER.error("Error creating TSocket...{}\n", e.getMessage());
+        }
+
+        return result;
+    }
+
     public void createThriftServer(ExternalClientThriftService.Processor processor) {
         try {
             TServerTransport serverTransport = new TServerSocket(tPort);
@@ -223,11 +281,73 @@ public class HQ {
         }
     }
 
+    public void createThriftServer(HqThriftService.Processor processor) {
+        try {
+            TServerTransport serverTransport = new TServerSocket(tPort-100);
+            TServer tServer = new TSimpleServer(new TServer.Args(serverTransport).processor(processor));
+            LOGGER.info("Starting thrift-server... Listening on port " + (tPort-100) + "...");
+            tServer.serve();
+        } catch (TTransportException e) {
+            LOGGER.error("Failed to create TTransport...\n{}", e.getMessage());
+        }
+    }
+
+    public String getOwnStatus(int index, int DATA_SETS) {
+        StringBuilder result = new StringBuilder();
+        // history
+        Map<Integer, List<Integer>> history = getHistory();
+
+        for (Map.Entry<Integer, List<Integer>> entry : history.entrySet()) {
+            result.append("Client ").append(entry.getKey()).append(":\n");
+            List<Integer> powerHistory = entry.getValue();
+            int startIndex = index * DATA_SETS;
+
+            if (startIndex > powerHistory.size()) {
+                startIndex--;
+            }
+
+            for (int i = startIndex; i < powerHistory.size(); i++) {
+                result.append(powerHistory.get(i)).append(", ");
+            }
+
+            result.append("\n");
+        }
+
+        result.append("Client status: \n");
+
+        // client status
+        Map<Integer, Boolean> statusClients = getStatusClients();
+        for (Map.Entry<Integer, Boolean> entry : statusClients.entrySet()) {
+            result.append("Client ").append(entry.getKey()).append(":\n");
+            boolean value = entry.getValue();
+            if (value) {
+                result.append("down").append(", ");
+            } else {
+                result.append("up").append(", ");
+            }
+            result.append("\n");
+        }
+
+        return result.toString();
+    }
+
     public Map<Integer, Client> getClients() {
         return clients;
     }
 
     public Map<Integer, List<Integer>> getHistory() {
         return history;
+    }
+
+    public Map<Integer, Boolean> getStatusClients() {
+        return statusClients;
+    }
+
+    public String getAllStatus() {
+        return allStatus;
+    }
+
+    public void setAllStatus(String allStatus) {
+        this.allStatus = allStatus;
     }
 }

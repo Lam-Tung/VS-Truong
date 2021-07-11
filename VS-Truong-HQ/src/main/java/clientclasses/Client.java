@@ -5,12 +5,14 @@ public class Client {
     private ClientType type;
     private String name;
     private int power;
+    private boolean shutdownStatus;
 
-    public Client(int id, ClientType type, String name, int power) {
+    public Client(int id, ClientType type, String name, int power, boolean shutdownStatus) {
         this.id = id;
         this.type = type;
         this.name = name;
         this.power = power;
+        this.shutdownStatus = shutdownStatus;
     }
 
     public int getId() {
@@ -43,5 +45,13 @@ public class Client {
 
     public void setPower(int power) {
         this.power = power;
+    }
+
+    public boolean isShutdownStatus() {
+        return shutdownStatus;
+    }
+
+    public void setShutdownStatus(boolean shutdownStatus) {
+        this.shutdownStatus = shutdownStatus;
     }
 }

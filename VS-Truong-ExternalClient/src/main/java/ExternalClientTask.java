@@ -32,5 +32,8 @@ public class ExternalClientTask extends TimerTask {
             LOGGER.info("Perform get status...");
             xClient.performGetStatus();
         }
+
+        LOGGER.info("Perform get all info...");
+        xClient.performGetAllInfo();
     }
 }

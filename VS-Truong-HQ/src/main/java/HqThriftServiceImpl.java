@@ -5,23 +5,20 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 
-public class ExternalClientThriftImpl implements ExternalClientThriftService.Iface{
+public class HqThriftServiceImpl implements HqThriftService.Iface{
     private HQ hq;
     private final int DATA_SETS = 10;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ExternalClientThriftImpl.class);
-    public ExternalClientThriftImpl(HQ hq) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HqThriftServiceImpl.class);
+
+    public HqThriftServiceImpl(HQ hq) {
         this.hq = hq;
     }
 
     @Override
-    public String getStatus() throws TException {
-        return hq.status;
-    }
+    public String getOtherHqStatus(int index) throws TException {
 
-    @Override
-    public String getHistory(int index) throws TException {
-        LOGGER.info("History request received...");
+        // history
         StringBuilder result = new StringBuilder();
         Map<Integer, List<Integer>> history = hq.getHistory();
 
@@ -41,13 +38,21 @@ public class ExternalClientThriftImpl implements ExternalClientThriftService.Ifa
             result.append("\n");
         }
 
+        result.append("Client status: \n");
+
+        // client status
+        Map<Integer, Boolean> statusClients = hq.getStatusClients();
+        for (Map.Entry<Integer, Boolean> entry : statusClients.entrySet()) {
+            result.append("Client ").append(entry.getKey()).append(":\n");
+            boolean value = entry.getValue();
+            if (value) {
+                result.append("down").append(", ");
+            } else {
+                result.append("up").append(", ");
+            }
+            result.append("\n");
+        }
 
         return result.toString();
-    }
-
-    @Override
-    public String getAllInfo() throws TException {
-        String result = hq.getAllStatus();
-        return result;
     }
 }

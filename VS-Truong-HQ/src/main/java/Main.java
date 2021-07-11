@@ -15,7 +15,7 @@ public class Main {
         }
 
         HQ hq = new HQ(args[0], Integer.parseInt(args[1]));
-        LOGGER.info("HQ started...");
+        LOGGER.info("HQ " + args[0] + " started...");
         Timer timer = new Timer();
         timer.schedule(new HQTask(hq), 10000, INTERVAL);
         hq.run();

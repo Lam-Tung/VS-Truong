@@ -31,8 +31,8 @@ public abstract class Client {
     // UDP
     protected InetAddress host;
     protected DatagramSocket udpSocket;
-    protected static String hostname = "hq";
-    protected static int HOST_PORT = 6543;
+    protected static String hostname;
+    protected static int uPort;
 
     // RPC Thrift
     protected boolean shutDown = false;
@@ -46,7 +46,7 @@ public abstract class Client {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Client.class);
 
-    public Client(int id, String name, ClientType type, int tPort) {
+    public Client(int id, String name, ClientType type, int tPort, int uPort, String hostname) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -54,6 +54,8 @@ public abstract class Client {
         this.buffer = new byte[BUFFER_SIZE];
         this.tPort = tPort;
         this.publisherId = UUID.randomUUID().toString();
+        this.uPort = uPort;
+        this.hostname = hostname;
 
         LOGGER.info("Created Client: " + this.name + " of type " + this.type.name());
 
@@ -113,8 +115,8 @@ public abstract class Client {
 
         try {
             buffer = jsonString.getBytes();
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, host, HOST_PORT);
-            LOGGER.info("Sending UDP packet... " + "Destination: " + host + " Port: " + HOST_PORT);
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length, host, uPort);
+            LOGGER.info("Sending UDP packet... " + "Destination: " + host + " Port: " + uPort);
             udpSocket.send(packet);
         } catch (IOException e) {
             LOGGER.error("Failed to send UDP packet...{}", e.getMessage());
@@ -128,8 +130,12 @@ public abstract class Client {
         MqttMessage msg = generateMqttMsg();
         msg.setQos(0);
         msg.setRetained(true);
+        String topic = this.hostname;
+
         try {
             publisher.publish("POWER_UPDATE", msg);
+            publisher.publish(topic, msg);
+
             LOGGER.info("Mqtt message sent...");
         } catch (MqttException e) {
             LOGGER.error("Could not publish Mqtt message...");
@@ -142,6 +148,7 @@ public abstract class Client {
         json.put("type", this.type);
         json.put("name", this.name);
         json.put("power", this.power);
+        json.put("shutdown-status", this.shutDown);
         String jsonString = json.toString();
         byte[] payload = jsonString.getBytes(StandardCharsets.UTF_8);
 

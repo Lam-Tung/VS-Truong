@@ -1,7 +1,7 @@
 version: "3.7"
 
 services:
-  headquarter:
+  headquarter1:
     ports:
       - 6543:6543
       - 8080:8080
@@ -9,9 +9,33 @@ services:
       context: ./
       dockerfile: ./VS-Truong-HQ/Dockerfile
       args:
-        - NAME=hq
+        - NAME=hq1
         - TPORT=9090
-    container_name: hq
+    container_name: hq1
+
+  headquarter2:
+    ports:
+      - 6544:6544
+      - 8081:8081
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-HQ/Dockerfile
+      args:
+        - NAME=hq2
+        - TPORT=9091
+    container_name: hq2
+
+  headquarter3:
+    ports:
+      - 6545:6545
+      - 8082:8082
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-HQ/Dockerfile
+      args:
+        - NAME=hq3
+        - TPORT=9092
+    container_name: hq3
 
   externalclient:
     build:
@@ -21,54 +45,174 @@ services:
         - NAME=xclient
     container_name: xclient
     depends_on:
-        - headquarter
+        - headquarter1
+        - headquarter2
+        - headquarter3
 
-  producer1:
+  producer11:
     build:
       context: ./
       dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
       args:
-        - ID=1
-        - NAME=solar
-        - TPORT=9091
-    container_name: producer1
+        - ID=11
+        - NAME=solar11
+        - TPORT=9011
+        - UPORT=6543
+        - HOST=hq1
+    container_name: producer11
     depends_on:
-      - headquarter
+      - headquarter1
 
-  producer2:
+  producer12:
     build:
       context: ./
       dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
       args:
-        - ID=2
-        - NAME=water
-        - TPORT=9092
-    container_name: producer2
+        - ID=12
+        - NAME=solar12
+        - TPORT=9012
+        - UPORT=6544
+        - HOST=hq2
+    container_name: producer12
     depends_on:
-      - headquarter
+      - headquarter2
 
-  producer3:
+  producer13:
     build:
       context: ./
       dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
       args:
-        - ID=3
-        - NAME=wind
-        - TPORT=9093
-    container_name: producer3
+        - ID=13
+        - NAME=solar13
+        - TPORT=9013
+        - UPORT=6545
+        - HOST=hq3
+    container_name: producer13
     depends_on:
-      - headquarter
+      - headquarter3
 
-  consumer1:
+  producer21:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=21
+        - NAME=water21
+        - TPORT=9021
+        - UPORT=6543
+        - HOST=hq1
+    container_name: producer21
+    depends_on:
+      - headquarter1
+
+  producer22:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=22
+        - NAME=water22
+        - TPORT=9022
+        - UPORT=6543
+        - HOST=hq2
+    container_name: producer22
+    depends_on:
+      - headquarter2
+
+  producer23:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=23
+        - NAME=water23
+        - TPORT=9023
+        - UPORT=6544
+        - HOST=hq3
+    container_name: producer23
+    depends_on:
+      - headquarter3
+
+  producer31:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=31
+        - NAME=wind31
+        - TPORT=9031
+        - UPORT=6543
+        - HOST=hq1
+    container_name: producer31
+    depends_on:
+      - headquarter1
+
+  producer32:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=32
+        - NAME=wind32
+        - TPORT=9032
+        - UPORT=6544
+        - HOST=hq2
+    container_name: producer32
+    depends_on:
+      - headquarter2
+
+  producer33:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/producer/Dockerfile
+      args:
+        - ID=33
+        - NAME=wind33
+        - TPORT=9033
+        - UPORT=6545
+        - HOST=hq3
+    container_name: producer33
+    depends_on:
+      - headquarter3
+
+  consumer11:
     build:
       context: ./
       dockerfile: ./VS-Truong-Client/dockerfiles/consumer/Dockerfile
       args:
-        - ID=4
-        - NAME=consumer1
-        - TPORT=9094
-    container_name: consumer1
+        - ID=41
+        - NAME=consumer11
+        - TPORT=9041
+        - UPORT=6543
+        - HOST=hq1
+    container_name: consumer11
     depends_on:
-      - headquarter
+      - headquarter1
 
+  consumer12:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/consumer/Dockerfile
+      args:
+        - ID=42
+        - NAME=consumer12
+        - TPORT=9042
+        - UPORT=6544
+        - HOST=hq2
+    container_name: consumer12
+    depends_on:
+      - headquarter2
 
+  consumer13:
+    build:
+      context: ./
+      dockerfile: ./VS-Truong-Client/dockerfiles/consumer/Dockerfile
+      args:
+        - ID=43
+        - NAME=consumer13
+        - TPORT=9043
+        - UPORT=6545
+        - HOST=hq3
+    container_name: consumer13
+    depends_on:
+      - headquarter3
