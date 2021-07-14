@@ -12,6 +12,7 @@ import java.util.Random;
 
 public class ExternalClient {
     private String name;
+    private int timeout = 0;
 
     // RPC Thrift
     private String hostname;
@@ -91,9 +92,31 @@ public class ExternalClient {
             ExternalClientThriftService.Client client = new ExternalClientThriftService.Client(protocol);
 
             try {
-                String result = client.getAllInfo();
-                LOGGER.info("Get all info performed successfully...");
-                LOGGER.info(result);
+                String status = client.getStatus();
+                LOGGER.info("STATUS: " + status);
+                if (status.equals("running")) {
+                    String result = client.getAllInfo();
+                    LOGGER.info("Get all info performed successfully...");
+                    LOGGER.info(result);
+                } else {
+                    while (status != "running") {
+                        if (timeout >= 10) {
+                            LOGGER.info("TIMEOUT");
+                            timeout = 0;
+                        }
+                        hostname = getRandomHost();
+                        port = getPortForHost(hostname);
+
+                        transport = new TSocket(hostname, port);
+                        transport.open();
+
+                        protocol = new TBinaryProtocol(transport);
+                        client = new ExternalClientThriftService.Client(protocol);
+                        status = client.getStatus();
+
+                        timeout++;
+                    }
+                }
             } catch (TException e) {
                 LOGGER.error("Error performing get all info...{}\n", e.getMessage());
             }
@@ -102,95 +125,6 @@ public class ExternalClient {
         } catch (TException e) {
             LOGGER.error("Error creating TSocket...{}\n", e.getMessage());
         }
-
-        /*try {
-            TTransport transport;
-
-            transport = new TSocket(hostname, port);
-            transport.open();
-
-            TProtocol protocol;
-            ExternalClientThriftService.Client client;
-
-            try {
-                String result = checkStatus(hostname);
-                if (result == "running") {
-                    LOGGER.info("Central is online...");
-                    transport = new TSocket(hostname, port);
-                    transport.open();
-                    protocol = new TBinaryProtocol(transport);
-                    client = new ExternalClientThriftService.Client(protocol);
-                    LOGGER.info("Perform get all info...");
-                    result = client.getAllInfo();
-                    LOGGER.info(result);
-
-                } else {
-                    switch (hostname) {
-                        case "hq1": {
-                            hostname = "hq2";
-                            port = getPortForHost(hostname);
-                            transport = new TSocket(hostname, port);
-                            transport.open();
-                            protocol = new TBinaryProtocol(transport);
-                            client = new ExternalClientThriftService.Client(protocol);
-                            result = client.getAllInfo();
-                            LOGGER.info(result);
-                        }
-                        case "hq2": {
-                            hostname = "hq3";
-                            port = getPortForHost(hostname);
-                            transport = new TSocket(hostname, port);
-                            transport.open();
-                            protocol = new TBinaryProtocol(transport);
-                            client = new ExternalClientThriftService.Client(protocol);
-                            result = client.getAllInfo();
-                            LOGGER.info(result);
-                        }
-                        case "hq3": {
-                            hostname = "hq1";
-                            port = getPortForHost(hostname);
-                            transport = new TSocket(hostname, port);
-                            transport.open();
-                            protocol = new TBinaryProtocol(transport);
-                            client = new ExternalClientThriftService.Client(protocol);
-                            result = client.getAllInfo();
-                            LOGGER.info(result);
-                        }
-                    }
-                }
-            } catch (TException e) {
-                LOGGER.error("Error performing get status...{}\n", e.getMessage());
-            }
-
-            transport.close();
-        } catch (TException e) {
-            LOGGER.error("Error creating TSocket...{}\n", e.getMessage());
-        }*/
-    }
-
-    private String checkStatus(String hostname) {
-        String result = "";
-        try {
-            TTransport transport;
-
-            transport = new TSocket(hostname, getPortForHost(hostname));
-            transport.open();
-
-            TProtocol protocol = new TBinaryProtocol(transport);
-            ExternalClientThriftService.Client client = new ExternalClientThriftService.Client(protocol);
-
-            try {
-                result = client.getStatus();
-                LOGGER.info("Get status performed successfully...");
-            } catch (TException e) {
-                LOGGER.error("Error performing get status...{}\n", e.getMessage());
-            }
-
-            transport.close();
-        } catch (TException e) {
-            LOGGER.error("Error creating TSocket...{}\n", e.getMessage());
-        }
-         return result;
     }
 
     private int getPortForHost(String hostname) {

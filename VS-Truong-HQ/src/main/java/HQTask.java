@@ -52,7 +52,6 @@ public class HQTask extends TimerTask {
 
             if (indexCounter >= 10) {
                 index++;
-                LOGGER.info("INDEX INCREASED -> " + index);
                 indexCounter = 0;
             }
 
@@ -80,8 +79,35 @@ public class HQTask extends TimerTask {
             boolean hqShutDown = random.nextBoolean();
             if (hqShutDown) {
                 hq.status = "down";
+                LOGGER.info("HQ DOWWWWWWWWWWWN");
             } else {
                 hq.status = "running";
+                LOGGER.info("HQ UPPPPPPPPPPPPPPPPP");
+                //on reboot get all info
+                String allStatus = "";
+
+                switch (hq.getName()) {
+                    case "hq1": {
+                        allStatus += hq.getOwnStatus(index, 0);
+                        allStatus += hq.performGetAllInfo("hq2", 9091 - 100, index);
+                        allStatus += hq.performGetAllInfo("hq3", 9092 - 100, index);
+                        break;
+                    }
+                    case "hq2": {
+                        allStatus += hq.performGetAllInfo("hq1", 9090-100, index);
+                        allStatus += hq.getOwnStatus(index, 0);
+                        allStatus += hq.performGetAllInfo("hq3", 9092-100, index);
+                        break;
+                    }
+                    case "hq3": {
+                        allStatus += hq.performGetAllInfo("hq1", 9090 - 100, index);
+                        allStatus += hq.performGetAllInfo("hq2", 9091 - 100, index);
+                        allStatus += hq.getOwnStatus(index, 0);
+                        break;
+                    }
+                }
+
+                hq.setAllStatus(allStatus);
             }
             counter = 0;
         }

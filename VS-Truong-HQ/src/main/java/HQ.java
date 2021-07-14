@@ -302,6 +302,7 @@ public class HQ {
             List<Integer> powerHistory = entry.getValue();
             int startIndex = index * DATA_SETS;
 
+
             if (startIndex > powerHistory.size()) {
                 startIndex--;
             }
